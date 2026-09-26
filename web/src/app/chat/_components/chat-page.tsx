@@ -9,7 +9,7 @@ import remarkGfm from "remark-gfm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { ChatTurn } from "@/lib/chat-types";
-import type { Paper } from "@/lib/types";
+import { getPaperCount, getPaper } from "@/lib/search-api";
 import { cn } from "@/lib/utils";
 import { useReadingList } from "../../_components/reading-list-store";
 import { useMeiliChat } from "./use-meili-chat";
@@ -19,7 +19,6 @@ type Scope = "all" | "list" | "paper";
 interface Status {
   chatEnabled: boolean;
   chatModel: string;
-  paperCount: number;
 }
 
 const SUGGESTIONS: Record<Scope, string[]> = {
@@ -49,11 +48,11 @@ function AssistantTurn({ turn, streaming }: { turn: ChatTurn; streaming: boolean
           {turn.searches.map((s) => (
             <span
               key={s.callId}
-              className="flex items-center gap-1.5 rounded-full border bg-muted/40 px-2.5 py-1 font-mono text-[11px] text-muted-foreground"
+              className="flex items-center gap-1.5 rounded-sm bg-muted px-2 py-1 text-xs text-muted-foreground"
             >
               <Search className="size-3" />
-              {s.q || "(browse)"}
-              {s.filter && <span className="text-[var(--brand)]">· {s.filter}</span>}
+              <span className="text-foreground">{s.q || "(browse)"}</span>
+              {s.filter && <code className="font-mono text-[11px] text-arxiv">{s.filter}</code>}
             </span>
           ))}
         </div>
@@ -61,7 +60,7 @@ function AssistantTurn({ turn, streaming }: { turn: ChatTurn; streaming: boolean
       {turn.error ? (
         <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{turn.error}</p>
       ) : turn.content ? (
-        <div className="prose-chat text-[15px] leading-relaxed">
+        <div className="prose-chat text-[16.5px] leading-[1.65]">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{turn.content}</ReactMarkdown>
         </div>
       ) : (
@@ -73,24 +72,26 @@ function AssistantTurn({ turn, streaming }: { turn: ChatTurn; streaming: boolean
         )
       )}
       {turn.sources.length > 0 && (
-        <div className="space-y-1.5 border-t pt-3">
-          <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-            Sources · {turn.sources.length} papers retrieved
+        <div className="border-t pt-3">
+          <p className="font-serif text-[15px] font-bold">
+            References <span className="font-sans text-xs font-normal text-muted-foreground">{turn.sources.length} papers retrieved by Meilisearch</span>
           </p>
-          <div className="flex flex-wrap gap-1.5">
-            {turn.sources.map((s) => (
-              <a
-                key={s.id}
-                href={`https://arxiv.org/abs/${s.arxivId ?? s.id}`}
-                target="_blank"
-                rel="noreferrer"
-                className="max-w-full truncate rounded-md border px-2 py-1 text-xs hover:border-[var(--brand)] hover:text-[var(--brand)]"
-              >
-                {s.title}
-                {s.year && <span className="ml-1 text-muted-foreground">{s.year}</span>}
-              </a>
+          <ol className="mt-2 space-y-1">
+            {turn.sources.map((s, i) => (
+              <li key={s.id} className="grid grid-cols-[2rem_1fr] items-baseline font-serif text-[14.5px] leading-snug">
+                <span className="text-muted-foreground tabular-nums">[{i + 1}]</span>
+                <a
+                  href={`https://arxiv.org/abs/${s.arxivId ?? s.id}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline-offset-2 hover:text-arxiv hover:underline"
+                >
+                  {s.title}
+                  {s.year && <span className="text-muted-foreground">, {s.year}</span>}
+                </a>
+              </li>
             ))}
-          </div>
+          </ol>
         </div>
       )}
     </div>
@@ -109,9 +110,10 @@ export function ChatPage({ initialScope, paperId }: { initialScope: Scope; paper
     queryKey: ["status"],
     queryFn: async (): Promise<Status> => (await fetch("/api/status")).json(),
   });
+  const { data: paperCount } = useQuery({ queryKey: ["paper-count"], queryFn: getPaperCount });
   const { data: focusPaper } = useQuery({
     queryKey: ["paper", paperId, false],
-    queryFn: async (): Promise<{ paper: Paper }> => (await fetch(`/api/papers/${paperId}`)).json(),
+    queryFn: () => getPaper(paperId as string),
     enabled: !!paperId,
   });
 
@@ -144,11 +146,11 @@ export function ChatPage({ initialScope, paperId }: { initialScope: Scope; paper
     <main className="mx-auto grid w-full max-w-7xl flex-1 gap-8 px-4 py-8 lg:grid-cols-[280px_1fr]">
       <aside className="space-y-6">
         <div className="space-y-2">
-          <h4 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Chat with</h4>
+          <h4 className="smallcaps text-[15px] font-semibold">Ask about</h4>
           <div className="grid gap-1.5">
             {(
               [
-                { value: "all", label: `All papers`, hint: `${status?.paperCount.toLocaleString() ?? "…"} papers`, icon: Globe },
+                { value: "all", label: `All papers`, hint: `${paperCount?.toLocaleString("en-US") ?? "…"} papers`, icon: Globe },
                 { value: "list", label: "My reading list", hint: `${readingList.length} papers`, icon: BookMarked },
                 ...(paperId
                   ? [{ value: "paper" as const, label: "This paper", hint: focusPaper?.paper.title ?? "…", icon: Search }]
@@ -159,11 +161,11 @@ export function ChatPage({ initialScope, paperId }: { initialScope: Scope; paper
                 key={value}
                 onClick={() => changeScope(value)}
                 className={cn(
-                  "flex items-start gap-2.5 rounded-lg border p-2.5 text-left transition-colors hover:bg-muted/50",
-                  scope === value && "border-[var(--brand)] bg-muted/40",
+                  "flex items-start gap-2.5 rounded-sm border border-transparent border-l-2 p-2.5 text-left transition-colors hover:bg-muted/60",
+                  scope === value && "border-l-arxiv bg-muted",
                 )}
               >
-                <Icon className={cn("mt-0.5 size-4", scope === value && "text-[var(--brand)]")} />
+                <Icon className={cn("mt-0.5 size-4 text-muted-foreground", scope === value && "text-arxiv")} />
                 <span className="min-w-0">
                   <span className="block text-sm font-medium">{label}</span>
                   <span className="block truncate text-xs text-muted-foreground">{hint}</span>
@@ -175,7 +177,7 @@ export function ChatPage({ initialScope, paperId }: { initialScope: Scope; paper
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <h4 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Reading list</h4>
+            <h4 className="smallcaps text-[15px] font-semibold">Reading list</h4>
             {readingList.length > 0 && (
               <button onClick={clearList} className="text-xs text-muted-foreground hover:text-destructive">
                 <Trash2 className="inline size-3" /> Clear
@@ -189,14 +191,14 @@ export function ChatPage({ initialScope, paperId }: { initialScope: Scope; paper
           ) : (
             <ul className="space-y-1">
               {readingList.map((i) => (
-                <li key={i.id} className="group flex items-start gap-2 rounded-md p-1 text-sm hover:bg-muted">
+                <li key={i.id} className="group flex items-start gap-2 rounded-sm p-1 font-serif text-[14.5px] hover:bg-muted">
                   <span className="min-w-0 flex-1 leading-snug">
                     {i.title} <span className="text-xs text-muted-foreground">{i.year}</span>
                   </span>
                   <button
                     aria-label="Remove"
                     onClick={() => removeFromList(i.id)}
-                    className="opacity-0 group-hover:opacity-100"
+                    className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
                   >
                     <X className="size-3.5" />
                   </button>
@@ -206,7 +208,7 @@ export function ChatPage({ initialScope, paperId }: { initialScope: Scope; paper
           )}
         </div>
 
-        <div className="rounded-lg bg-muted/50 p-3 text-xs leading-relaxed text-muted-foreground">
+        <div className="border-t pt-4 text-xs leading-relaxed text-muted-foreground">
           Answers come from Meilisearch&apos;s <code className="font-mono">/chats</code> API: the LLM calls a hybrid search
           tool on the <code className="font-mono">papers</code> index. Scoping to a list uses a{" "}
           <strong>tenant token</strong> whose search rule filters <code className="font-mono">id IN […]</code>.
@@ -220,7 +222,7 @@ export function ChatPage({ initialScope, paperId }: { initialScope: Scope; paper
 
       <section className="flex min-h-[70vh] min-w-0 flex-col">
         {status && !status.chatEnabled && (
-          <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+          <div className="mb-4 rounded-sm border-l-2 border-arxiv bg-muted p-3 text-sm">
             Chat isn&apos;t configured yet: add <code className="font-mono">CHAT_API_KEY</code> to <code>.env</code>, then
             run <code className="font-mono">pnpm data:setup</code>.
           </div>
@@ -229,12 +231,12 @@ export function ChatPage({ initialScope, paperId }: { initialScope: Scope; paper
         <div className="flex-1 space-y-8">
           {turns.length === 0 ? (
             <div className="pt-8">
-              <h1 className="font-serif text-3xl font-semibold tracking-tight">
+              <h1 className="font-serif text-4xl leading-tight font-semibold tracking-tight text-balance">
                 {scope === "all" && "Ask anything about AI research"}
                 {scope === "list" && "Chat with your reading list"}
                 {scope === "paper" && (focusPaper?.paper.title ?? "Chat with this paper")}
               </h1>
-              <p className="mt-1 text-muted-foreground">
+              <p className="mt-2 font-serif text-lg text-muted-foreground">
                 {scope === "list" && listEmpty
                   ? "Your reading list is empty — bookmark a few papers first."
                   : "Grounded answers, with the papers Meilisearch retrieved as sources."}
@@ -245,7 +247,7 @@ export function ChatPage({ initialScope, paperId }: { initialScope: Scope; paper
                     key={s}
                     disabled={listEmpty}
                     onClick={() => submit(s)}
-                    className="rounded-xl border p-3 text-left text-sm transition-colors hover:border-[var(--brand)] disabled:opacity-50"
+                    className="rounded-sm border-l-2 bg-muted/50 px-4 py-3 text-left font-serif text-[15.5px] italic transition-colors hover:border-l-arxiv hover:bg-muted disabled:opacity-50"
                   >
                     {s}
                   </button>
@@ -256,7 +258,7 @@ export function ChatPage({ initialScope, paperId }: { initialScope: Scope; paper
             turns.map((t, i) =>
               t.role === "user" ? (
                 <div key={t.id} className="flex justify-end">
-                  <p className="max-w-[80%] rounded-2xl rounded-br-sm bg-foreground px-4 py-2.5 text-[15px] text-background">
+                  <p className="max-w-[80%] rounded-sm border-r-2 border-arxiv bg-muted px-4 py-2.5 font-serif text-[16px] italic">
                     {t.content}
                   </p>
                 </div>
@@ -274,7 +276,7 @@ export function ChatPage({ initialScope, paperId }: { initialScope: Scope; paper
               e.preventDefault();
               submit(input);
             }}
-            className="flex items-end gap-2 rounded-2xl border bg-background p-2 shadow-lg"
+            className="flex items-end gap-2 rounded-sm border border-foreground/50 bg-background p-2 shadow-[0_8px_24px_-12px_rgb(0_0_0/0.25)] focus-within:border-arxiv"
           >
             {scope !== "all" && (
               <Badge variant="secondary" className="mb-1.5 ml-1 shrink-0">
@@ -292,7 +294,8 @@ export function ChatPage({ initialScope, paperId }: { initialScope: Scope; paper
               }}
               rows={1}
               placeholder="Ask a question about the papers…"
-              className="max-h-40 min-h-9 flex-1 resize-none bg-transparent px-2 py-1.5 text-[15px] outline-none"
+              aria-label="Your question"
+              className="max-h-40 min-h-9 flex-1 resize-none bg-transparent px-2 py-1.5 font-serif text-[16px] outline-none placeholder:italic"
             />
             {turns.length > 0 && !isStreaming && (
               <Button type="button" variant="ghost" size="icon" onClick={reset} aria-label="New conversation">

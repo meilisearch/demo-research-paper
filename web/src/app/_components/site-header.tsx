@@ -2,48 +2,55 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookMarked, MessagesSquare, Search, Telescope } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useReadingList } from "./reading-list-store";
 
 const NAV = [
-  { href: "/", label: "Search", icon: Search },
-  { href: "/chat", label: "Chat", icon: MessagesSquare },
+  { href: "/", label: "Search" },
+  { href: "/chat", label: "Ask the papers" },
 ];
+
+const navLink =
+  "relative flex h-full items-center text-sm text-muted-foreground transition-colors hover:text-foreground after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:bg-transparent";
 
 export function SiteHeader() {
   const pathname = usePathname();
   const count = useReadingList((s) => s.items.length);
 
   return (
-    <header className="sticky top-0 z-30 border-b bg-background/85 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-7xl items-center gap-6 px-4">
-        <Link href="/" className="flex items-center gap-2">
-          <Telescope className="size-5 text-[var(--brand)]" />
-          <span className="font-serif text-lg font-semibold tracking-tight">Paperscope</span>
-          <span className="hidden text-xs text-muted-foreground sm:inline">AI research · powered by Meilisearch</span>
+    <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur">
+      <div className="mx-auto flex h-14 max-w-7xl items-center gap-8 px-4">
+        <Link href="/" className="flex items-baseline gap-3">
+          <span className="font-serif text-[22px] leading-none font-bold tracking-tight">
+            Paperscope
+          </span>
+          <span className="hidden font-serif text-sm text-muted-foreground italic md:inline">
+            AI research from arXiv, indexed by Meilisearch
+          </span>
         </Link>
-        <nav className="ml-auto flex items-center gap-1">
-          {NAV.map(({ href, label, icon: Icon }) => (
+        <nav className="ml-auto flex h-full items-center gap-6">
+          {NAV.map(({ href, label }) => (
             <Link
               key={href}
               href={href}
-              className={cn(
-                "flex h-8 items-center gap-1.5 rounded-lg px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
-                pathname === href && "bg-muted text-foreground",
-              )}
+              className={cn(navLink, pathname === href && "text-foreground after:bg-arxiv")}
             >
-              <Icon className="size-4" />
               {label}
             </Link>
           ))}
           <Link
             href="/chat?scope=list"
-            className="ml-2 flex h-8 items-center gap-1.5 rounded-lg border px-3 text-sm transition-colors hover:bg-muted"
+            className={cn(navLink, "gap-1.5")}
           >
-            <BookMarked className="size-4" />
             Reading list
-            <span className="rounded-full bg-[var(--brand)] px-1.5 text-xs font-medium text-white tabular-nums">{count}</span>
+            <span
+              className={cn(
+                "min-w-5 rounded-sm px-1 text-center text-xs font-medium tabular-nums",
+                count > 0 ? "bg-arxiv text-white" : "bg-muted text-muted-foreground",
+              )}
+            >
+              {count}
+            </span>
           </Link>
         </nav>
       </div>

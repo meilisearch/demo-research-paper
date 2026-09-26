@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
+import { searchFacetValues } from "@/lib/search-api";
 import type { SearchResponse } from "@/lib/types";
 import { categoryName } from "./categories";
 import { useSearch } from "./search-store";
@@ -37,16 +38,16 @@ function FacetList({
 
   return (
     <section className="space-y-2">
-      <h4 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">{title}</h4>
+      {title && <h4 className="smallcaps text-[15px] font-semibold">{title}</h4>}
       <ul className="space-y-1">
         {shown.map(([value, count]) => (
           <li key={value}>
-            <label className="flex cursor-pointer items-center gap-2 rounded-md px-1 py-0.5 text-sm hover:bg-muted">
+            <label className="flex cursor-pointer items-center gap-2 rounded-sm px-1 py-0.5 text-sm hover:bg-muted">
               <Checkbox checked={selected.includes(value)} onCheckedChange={() => toggle(facet, value)} />
               <span className="flex-1 truncate" title={value}>
                 {label(value)}
               </span>
-              <span className="font-mono text-xs text-muted-foreground tabular-nums">{count}</span>
+              <span className="text-xs text-muted-foreground tabular-nums">{count}</span>
             </label>
           </li>
         ))}
@@ -68,13 +69,7 @@ function AuthorFacet({ distribution, selected }: { distribution?: Record<string,
   const deferred = useDeferredValue(facetQuery);
   const { data } = useQuery({
     queryKey: ["facet-search", "authors", deferred, q],
-    queryFn: async (): Promise<{ value: string; count: number }[]> =>
-      (
-        await fetch("/api/facet-search", {
-          method: "POST",
-          body: JSON.stringify({ facetName: "authors", facetQuery: deferred, q }),
-        })
-      ).json(),
+    queryFn: () => searchFacetValues("authors", deferred, q),
     enabled: deferred.length > 0,
   });
 
@@ -86,23 +81,23 @@ function AuthorFacet({ distribution, selected }: { distribution?: Record<string,
           value={facetQuery}
           onChange={(e) => setFacetQuery(e.target.value)}
           placeholder="Find an author…"
-          className="h-7 pl-7 text-xs"
+          className="h-7 rounded-sm pl-7 text-xs"
         />
       </div>
       {deferred ? (
         <ul className="space-y-1">
           {(data ?? []).map(({ value, count }) => (
             <li key={value}>
-              <label className="flex cursor-pointer items-center gap-2 rounded-md px-1 py-0.5 text-sm hover:bg-muted">
+              <label className="flex cursor-pointer items-center gap-2 rounded-sm px-1 py-0.5 text-sm hover:bg-muted">
                 <Checkbox checked={selected.includes(value)} onCheckedChange={() => toggle("authors", value)} />
                 <span className="flex-1 truncate">{value}</span>
-                <span className="font-mono text-xs text-muted-foreground">{count}</span>
+                <span className="text-xs text-muted-foreground tabular-nums">{count}</span>
               </label>
             </li>
           ))}
         </ul>
       ) : (
-        <FacetList title="Top in results" facet="authors" distribution={distribution} selected={selected} limit={6} />
+        <FacetList title="" facet="authors" distribution={distribution} selected={selected} limit={6} />
       )}
     </section>
   );
@@ -117,8 +112,8 @@ function YearFacet({ stats }: { stats?: { min: number; max: number } }) {
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between">
-        <h4 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Year</h4>
-        <span className="font-mono text-xs">
+        <h4 className="smallcaps text-[15px] font-semibold">Year</h4>
+        <span className="text-xs tabular-nums">
           {value[0]}–{value[1]}
         </span>
       </div>
@@ -149,7 +144,7 @@ export function FacetsPanel({ data }: { data: SearchResponse | undefined }) {
     (filters.yearMin !== undefined || filters.yearMax !== undefined ? 1 : 0);
 
   return (
-    <aside className="space-y-6">
+    <aside className="space-y-7">
       {active > 0 && (
         <Button variant="outline" size="sm" onClick={reset} className="w-full">
           <X /> Clear {active} filter{active > 1 && "s"}
@@ -165,7 +160,7 @@ export function FacetsPanel({ data }: { data: SearchResponse | undefined }) {
       <YearFacet stats={data?.facetStats.year} />
       <FacetList title="Topic" facet="topics" distribution={data?.facetDistribution.topics} selected={filters.topics} />
       <div className="space-y-2">
-        <h4 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Authors</h4>
+        <h4 className="smallcaps text-[15px] font-semibold">Authors</h4>
         <AuthorFacet distribution={data?.facetDistribution.authors} selected={filters.authors} />
       </div>
     </aside>
