@@ -30,7 +30,9 @@ services:
     environment:
       WATCHPACK_POLLING: "true"
       MEILI_HOST: http://meilisearch:7700
-      MEILI_PUBLIC_URL: ${MEILI_PUBLIC_URL:-http://localhost:7700}
+      # The browser queries Meilisearch directly with the search-only key printed by `pnpm data:setup`.
+      NEXT_PUBLIC_MEILI_URL: ${NEXT_PUBLIC_MEILI_URL:-http://localhost:7700}
+      NEXT_PUBLIC_MEILI_SEARCH_KEY: ${NEXT_PUBLIC_MEILI_SEARCH_KEY:-}
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-research-papers-master-key-change-me}
     depends_on:
       meilisearch:

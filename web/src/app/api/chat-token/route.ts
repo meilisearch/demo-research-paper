@@ -1,11 +1,14 @@
 import { generateTenantToken } from "meilisearch/token";
-import { CHAT_MODEL, CHAT_WORKSPACE, MEILI_PUBLIC_URL, meili, PAPERS_INDEX, quote } from "@/lib/meili";
+import { CHAT_MODEL, CHAT_WORKSPACE, MEILI_CHAT_KEY, MEILI_CHAT_KEY_UID, meili, PAPERS_INDEX, quote } from "@/lib/meili";
+import { MEILI_URL } from "@/lib/search-api";
 import type { ChatSession } from "@/lib/chat-types";
 
 let chatKeyCache: { key: string; uid: string } | null = null;
 
 async function getChatKey() {
+  if (MEILI_CHAT_KEY && MEILI_CHAT_KEY_UID) return { key: MEILI_CHAT_KEY, uid: MEILI_CHAT_KEY_UID };
   if (chatKeyCache) return chatKeyCache;
+  // Local dev: find it with the master key.
   const { results } = await meili.getKeys({ limit: 100 });
   const key = results.find((k) => k.actions.includes("chatCompletions") && k.actions.includes("search"));
   if (!key) throw new Error("No chat API key found (expected the 'Default Chat API Key')");
@@ -22,7 +25,13 @@ async function getChatKey() {
 export async function POST(req: Request) {
   const { paperIds } = (await req.json()) as { paperIds?: string[] };
 
-  const configured = await meili.getChatWorkspace(CHAT_WORKSPACE).then(() => true, () => false);
+  // The production chat key is index-scoped and cannot read workspaces: its presence is the signal.
+  const configured =
+    !!MEILI_CHAT_KEY ||
+    (await meili.getChatWorkspace(CHAT_WORKSPACE).then(
+      () => true,
+      () => false,
+    ));
   if (!configured) {
     return Response.json(
       { error: "Chat is not configured. Set CHAT_API_KEY in .env and run `pnpm data:setup`." },
@@ -40,6 +49,6 @@ export async function POST(req: Request) {
     expiresAt: new Date(Date.now() + 30 * 60 * 1000),
   });
 
-  const session: ChatSession = { host: MEILI_PUBLIC_URL, workspace: CHAT_WORKSPACE, model: CHAT_MODEL, token };
+  const session: ChatSession = { host: MEILI_URL, workspace: CHAT_WORKSPACE, model: CHAT_MODEL, token };
   return Response.json(session);
 }

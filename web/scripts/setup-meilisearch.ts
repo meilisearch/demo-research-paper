@@ -1,7 +1,10 @@
-// Configures Meilisearch (indexes, settings, embedder, chat workspace) and
-// imports ../data/papers.json.
+// Configures Meilisearch (indexes, settings, embedder, chat workspace, API keys)
+// and imports ../data/papers.json.
 //
 //   node scripts/setup-meilisearch.ts
+//
+// VECTORS_FROM_HOST / VECTORS_FROM_KEY: copy the `bge` embeddings from another
+// Meilisearch (e.g. your local one) instead of computing them again on the target.
 import { Meilisearch } from "meilisearch";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -18,6 +21,47 @@ const PAPERS = "papers";
 const AUTHORS = "authors";
 const EMBEDDER = "bge";
 const WORKSPACE = "papers";
+
+// Fixed uids: a key's value is derived from its uid and the master key, so
+// re-running this script finds the same keys instead of piling up new ones.
+const SEARCH_KEY_UID = "7dbdf598-3e28-4236-9e10-3a5032b8ee19";
+const CHAT_KEY_UID = "aaea7803-0890-4396-b0e5-1a630e1a3dc9";
+
+/** Embeddings already computed elsewhere, keyed by paper id. */
+async function fetchVectors(): Promise<Map<string, number[]> | null> {
+  const from = process.env.VECTORS_FROM_HOST;
+  if (!from) return null;
+  const key = process.env.VECTORS_FROM_KEY ?? "research-papers-master-key-change-me";
+  const vectors = new Map<string, number[]>();
+  for (let offset = 0; ; offset += 1000) {
+    const res = await fetch(`${from}/indexes/${PAPERS}/documents/fetch`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ offset, limit: 1000, fields: ["id"], retrieveVectors: true }),
+    });
+    if (!res.ok) throw new Error(`fetch vectors -> ${res.status} ${await res.text()}`);
+    const page = (await res.json()) as { results: { id: string; _vectors?: Record<string, { embeddings: number[][] }> }[] };
+    for (const d of page.results) {
+      const embedding = d._vectors?.[EMBEDDER]?.embeddings?.[0];
+      if (embedding) vectors.set(d.id, embedding);
+    }
+    if (page.results.length < 1000) break;
+  }
+  console.log(`✓ ${vectors.size} embeddings copied from ${from}`);
+  return vectors;
+}
+
+async function ensureKey(uid: string, body: { name: string; description: string; actions: string[]; indexes: string[] }) {
+  const existing = await fetch(`${host}/keys/${uid}`, { headers: { Authorization: `Bearer ${apiKey}` } });
+  if (existing.ok) {
+    await meili(`/keys/${uid}`, { method: "PATCH", body: JSON.stringify({ name: body.name, description: body.description }) });
+    return (await existing.json()) as { key: string; uid: string };
+  }
+  return (await meili("/keys", { method: "POST", body: JSON.stringify({ uid, ...body, expiresAt: null }) })) as {
+    key: string;
+    uid: string;
+  };
+}
 
 async function meili(pathname: string, init: RequestInit = {}) {
   const res = await fetch(`${host}${pathname}`, {
@@ -41,9 +85,9 @@ async function main() {
 
   await meili("/experimental-features", {
     method: "PATCH",
-    body: JSON.stringify({ chatCompletions: true, containsFilter: true }),
+    body: JSON.stringify({ chatCompletions: true }),
   });
-  console.log("✓ experimental features: chatCompletions, containsFilter");
+  console.log("✓ experimental features: chatCompletions");
 
   // ---- papers index -------------------------------------------------------
   await client.createIndex(PAPERS, { primaryKey: "id" }).waitTask().catch(() => undefined);
@@ -112,9 +156,20 @@ async function main() {
   } as Parameters<typeof papersIndex.updateSettings>[0]);
   await waitTask(settingsTask.taskUid, "papers settings");
 
-  const addTask = await papersIndex.addDocuments(papers, { primaryKey: "id" });
-  console.log("… importing + embedding papers locally with BAAI/bge-small-en-v1.5 (a few minutes on CPU)");
-  await waitTask(addTask.taskUid, `papers documents (${papers.length})`);
+  const vectors = await fetchVectors();
+  const docs = papers.map((p) => {
+    const embedding = vectors?.get(p.id);
+    return embedding ? { ...p, _vectors: { [EMBEDDER]: { embeddings: embedding, regenerate: false } } } : p;
+  });
+  console.log(
+    vectors
+      ? `… importing papers (${docs.length - vectors.size} still need embedding)`
+      : "… importing + embedding papers locally with BAAI/bge-small-en-v1.5 (a few minutes on CPU)",
+  );
+  for (let i = 0; i < docs.length; i += 1000) {
+    const task = await papersIndex.addDocuments(docs.slice(i, i + 1000), { primaryKey: "id" });
+    await waitTask(task.taskUid, `papers documents ${i + 1}–${Math.min(i + 1000, docs.length)}`);
+  }
 
   // ---- authors index (for multi-search) ----------------------------------
   const authors = new Map<string, { id: string; name: string; paperCount: number; citationCount: number; topics: Set<string>; categories: Set<string> }>();
@@ -176,6 +231,24 @@ async function main() {
   } else {
     console.log("! CHAT_API_KEY not set: chat workspace skipped (search + similar papers still work)");
   }
+
+  // ---- API keys ----------------------------------------------------------
+  // Public: ships in the browser bundle, so it can only search these two indexes.
+  const searchKey = await ensureKey(SEARCH_KEY_UID, {
+    name: "Paperscope search (public)",
+    description: "Browser search key for the Paperscope demo: search on papers + authors only.",
+    actions: ["search"],
+    indexes: [PAPERS, AUTHORS],
+  });
+  // Server-only: signs the tenant tokens handed to the browser for /chats.
+  const chatApiKey = await ensureKey(CHAT_KEY_UID, {
+    name: "Paperscope chat (server)",
+    description: "Server key for the Paperscope demo: signs tenant tokens for /chats on the papers index.",
+    actions: ["search", "chatCompletions"],
+    indexes: [PAPERS],
+  });
+  console.log(`✓ keys\n  NEXT_PUBLIC_MEILI_SEARCH_KEY=${searchKey.key}\n  MEILI_CHAT_KEY_UID=${chatApiKey.uid}`);
+  console.log("  MEILI_CHAT_KEY is not printed: read it with GET /keys/" + CHAT_KEY_UID);
 
   const stats = await client.getStats();
   console.log(JSON.stringify(stats.indexes, null, 2));

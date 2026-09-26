@@ -7,10 +7,16 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-serif: var(--font-serif);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-serif);
+  --font-sans: var(--font-fira-sans);
+  --font-serif: var(--font-stix);
+  --font-mono: var(--font-fira-code);
+  --font-heading: var(--font-stix);
+  --color-paper: var(--background);
+  --color-ink: var(--foreground);
+  --color-arxiv: var(--brand);
+  --color-cite: var(--cite);
+  --color-stamp: var(--stamp);
+  --color-rule: var(--border);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -49,77 +55,87 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/*
+ * Paperscope palette: the first page of a preprint.
+ * White paper, printer's ink, arXiv red for anything active, the grey of the
+ * arXiv margin stamp, hyperref green for citations and highlighter yellow for matches.
+ */
 :root {
-  --brand: oklch(0.62 0.21 355);
-  --highlight: oklch(0.93 0.09 95);
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --brand: #b31b1b;
+  --cite: #1d7437;
+  --stamp: #8f8f8a;
+  --highlight: #fff07a;
+  --background: #fdfdfc;
+  --foreground: #1f1f1d;
+  --card: #fdfdfc;
+  --card-foreground: #1f1f1d;
+  --popover: #ffffff;
+  --popover-foreground: #1f1f1d;
+  --primary: #1f1f1d;
+  --primary-foreground: #fdfdfc;
+  --secondary: #f1f0ec;
+  --secondary-foreground: #1f1f1d;
+  --muted: #f1f0ec;
+  --muted-foreground: #62625d;
+  --accent: #f1f0ec;
+  --accent-foreground: #1f1f1d;
+  --destructive: #b31b1b;
+  --border: #e2e1dc;
+  --input: #cfcec8;
+  --ring: #b31b1b;
+  --chart-1: #b31b1b;
+  --chart-2: #1d7437;
+  --chart-3: #62625d;
+  --chart-4: #8f8f8a;
+  --chart-5: #1f1f1d;
+  --radius: 0.25rem;
+  --sidebar: #fdfdfc;
+  --sidebar-foreground: #1f1f1d;
+  --sidebar-primary: #1f1f1d;
+  --sidebar-primary-foreground: #fdfdfc;
+  --sidebar-accent: #f1f0ec;
+  --sidebar-accent-foreground: #1f1f1d;
+  --sidebar-border: #e2e1dc;
+  --sidebar-ring: #b31b1b;
 }
 
+/* A PDF reader's night mode: grey desk, light ink. */
 .dark {
-  --brand: oklch(0.72 0.18 355);
-  --highlight: oklch(0.45 0.09 95);
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --brand: #ef6b62;
+  --cite: #6fcf8b;
+  --stamp: #7c7c78;
+  --highlight: #6b5d12;
+  --background: #1e1e1f;
+  --foreground: #e9e8e4;
+  --card: #1e1e1f;
+  --card-foreground: #e9e8e4;
+  --popover: #262627;
+  --popover-foreground: #e9e8e4;
+  --primary: #e9e8e4;
+  --primary-foreground: #1e1e1f;
+  --secondary: #2c2c2d;
+  --secondary-foreground: #e9e8e4;
+  --muted: #2c2c2d;
+  --muted-foreground: #a3a29d;
+  --accent: #2c2c2d;
+  --accent-foreground: #e9e8e4;
+  --destructive: #ef6b62;
+  --border: #353536;
+  --input: #454546;
+  --ring: #ef6b62;
+  --chart-1: #ef6b62;
+  --chart-2: #6fcf8b;
+  --chart-3: #a3a29d;
+  --chart-4: #7c7c78;
+  --chart-5: #e9e8e4;
+  --sidebar: #1e1e1f;
+  --sidebar-foreground: #e9e8e4;
+  --sidebar-primary: #e9e8e4;
+  --sidebar-primary-foreground: #1e1e1f;
+  --sidebar-accent: #2c2c2d;
+  --sidebar-accent-foreground: #e9e8e4;
+  --sidebar-border: #353536;
+  --sidebar-ring: #ef6b62;
 }
 
 @layer base {
@@ -132,20 +148,69 @@
   html {
     @apply font-sans;
   }
-}
-mark {
-  background: var(--highlight);
-  color: inherit;
-  border-radius: 2px;
-  padding: 0 1px;
+  ::selection {
+    background: color-mix(in srgb, var(--brand) 18%, transparent);
+  }
 }
 
+/* A highlighter stroke rather than a filled box. */
+mark {
+  background: linear-gradient(
+    100deg,
+    transparent 0.1em,
+    var(--highlight) 0.15em,
+    var(--highlight) calc(100% - 0.15em),
+    transparent calc(100% - 0.1em)
+  );
+  color: inherit;
+  padding: 0 0.12em;
+  margin: 0 -0.05em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+@layer components {
+  /* The vertical grey stamp arXiv prints in the left margin of every preprint. */
+  .arxiv-stamp {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    white-space: nowrap;
+    font-family: var(--font-stix);
+    color: var(--stamp);
+    letter-spacing: 0.01em;
+    user-select: none;
+  }
+
+  /* LaTeX \textsc: small caps with a capital first letter. */
+  .smallcaps {
+    font-family: var(--font-stix);
+    font-variant-caps: small-caps;
+    letter-spacing: 0.04em;
+  }
+
+  /* Justified, hyphenated, like a typeset abstract. */
+  .typeset {
+    hyphens: auto;
+    text-wrap: pretty;
+  }
+  @media (min-width: 640px) {
+    .typeset {
+      text-align: justify;
+    }
+  }
+}
+
+.prose-chat {
+  font-family: var(--font-stix);
+}
 .prose-chat > * + * { margin-top: 0.75em; }
 .prose-chat ul { list-style: disc; padding-left: 1.25em; }
 .prose-chat ol { list-style: decimal; padding-left: 1.25em; }
 .prose-chat li + li { margin-top: 0.3em; }
-.prose-chat h1, .prose-chat h2, .prose-chat h3 { font-family: var(--font-serif); font-weight: 600; font-size: 1.1em; }
-.prose-chat code { font-family: var(--font-geist-mono); font-size: 0.85em; background: var(--muted); padding: 0.1em 0.3em; border-radius: 4px; }
-.prose-chat a { color: var(--brand); text-decoration: underline; }
-.prose-chat table { font-size: 0.9em; border-collapse: collapse; }
+.prose-chat h1, .prose-chat h2, .prose-chat h3 { font-weight: 700; font-size: 1.1em; }
+.prose-chat strong { font-weight: 700; }
+.prose-chat code { font-family: var(--font-fira-code); font-size: 0.8em; background: var(--muted); padding: 0.1em 0.3em; border-radius: 2px; }
+.prose-chat a { color: var(--brand); text-decoration: underline; text-underline-offset: 2px; }
+.prose-chat table { font-size: 0.9em; border-collapse: collapse; font-family: var(--font-fira-sans); }
 .prose-chat th, .prose-chat td { border: 1px solid var(--border); padding: 0.3em 0.6em; text-align: left; }
+.prose-chat th { border-bottom-color: var(--foreground); }

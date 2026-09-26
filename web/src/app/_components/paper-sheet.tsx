@@ -1,24 +1,16 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpRight, FileText, MessagesSquare, Quote, Sparkles } from "lucide-react";
+import { ArrowUpRight, FileText, MessagesSquare, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Paper, PaperHit } from "@/lib/types";
-import { categoryName, formatCount } from "./categories";
-import { PaperCard, ReadingListButton } from "./paper-card";
-
-interface PaperDetail {
-  paper: Paper;
-  similar: PaperHit[];
-  processingTimeMs: number;
-}
+import { getPaper } from "@/lib/search-api";
+import { categoryName, formatArxivDate, formatCount } from "./categories";
+import { ArxivStamp, PaperReference, ReadingListButton } from "./paper-card";
 
 export function PaperSheet({
   paperId,
@@ -34,18 +26,14 @@ export function PaperSheet({
   const [sameCategory, setSameCategory] = useState(false);
   const { data, isLoading } = useQuery({
     queryKey: ["paper", paperId, sameCategory],
-    queryFn: async (): Promise<PaperDetail> => {
-      const res = await fetch(`/api/papers/${paperId}?sameCategory=${sameCategory ? 1 : 0}`);
-      if (!res.ok) throw new Error("Failed to load paper");
-      return res.json();
-    },
+    queryFn: () => getPaper(paperId as string, sameCategory),
     enabled: !!paperId,
   });
   const paper = data?.paper;
 
   return (
     <Sheet open={!!paperId} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full gap-0 overflow-y-auto data-[side=right]:sm:max-w-2xl">
+      <SheetContent side="right" className="w-full gap-0 overflow-y-auto data-[side=right]:sm:max-w-3xl">
         {isLoading || !paper ? (
           <div className="space-y-3 p-6">
             <Skeleton className="h-4 w-24" />
@@ -54,109 +42,109 @@ export function PaperSheet({
             <Skeleton className="h-40 w-full" />
           </div>
         ) : (
-          <>
-            <SheetHeader className="gap-2 p-6 pb-4">
-              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <span className="font-mono">arXiv:{paper.arxivId}</span>
-                <span>·</span>
-                <span>{paper.publishedDate}</span>
-                <span>·</span>
-                <span>{categoryName(paper.primaryCategory)}</span>
-              </div>
-              <SheetTitle className="pr-8 font-serif text-2xl leading-tight">{paper.title}</SheetTitle>
-              <SheetDescription render={<div />} className="flex flex-wrap gap-x-1 gap-y-0.5 text-sm">
+          <div className="relative">
+            <ArxivStamp
+              paper={paper}
+              className="absolute top-24 left-3 hidden text-[20px] sm:block"
+            />
+
+            <div className="flex flex-wrap items-center gap-2 border-b px-6 py-3 pr-12 sm:pl-14">
+              <ReadingListButton paper={paper} size="sm" />
+              <Button size="sm" variant="outline" render={<Link href={`/chat?paper=${paper.id}`} />} nativeButton={false}>
+                <MessagesSquare /> Ask about this paper
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                render={<a href={paper.pdfUrl} target="_blank" rel="noreferrer" />}
+                nativeButton={false}
+              >
+                <FileText /> PDF
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                render={<a href={paper.absUrl} target="_blank" rel="noreferrer" />}
+                nativeButton={false}
+              >
+                arXiv page <ArrowUpRight />
+              </Button>
+            </div>
+
+            <SheetHeader className="items-center gap-3 px-6 pt-10 pb-6 text-center sm:px-14">
+              <p className="text-xs text-muted-foreground sm:hidden">arXiv:{paper.arxivId}</p>
+              <SheetTitle className="font-serif text-[26px] leading-tight font-semibold text-balance">
+                {paper.title}
+              </SheetTitle>
+              <SheetDescription
+                render={<div />}
+                className="flex flex-wrap justify-center gap-x-1.5 gap-y-0.5 font-serif text-[15px] text-foreground"
+              >
                 {paper.authors.map((a, i) => (
                   <button
                     key={a}
                     onClick={() => onAuthor(a)}
-                    className="text-foreground/80 underline-offset-2 hover:text-[var(--brand)] hover:underline"
+                    title={`Show papers by ${a}`}
+                    className="underline-offset-2 hover:text-arxiv hover:underline"
                   >
                     {a}
                     {i < paper.authors.length - 1 && ","}
                   </button>
                 ))}
               </SheetDescription>
-              <div className="flex flex-wrap items-center gap-2 pt-2">
-                <ReadingListButton paper={paper} size="sm" />
-                <Button
-                  size="sm"
-                  variant="outline"
-                  render={<Link href={`/chat?paper=${paper.id}`} />}
-                  nativeButton={false}
-                >
-                  <MessagesSquare /> Ask about this paper
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  render={<a href={paper.pdfUrl} target="_blank" rel="noreferrer" />}
-                  nativeButton={false}
-                >
-                  <FileText /> PDF
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  render={<a href={paper.absUrl} target="_blank" rel="noreferrer" />}
-                  nativeButton={false}
-                >
-                  arXiv <ArrowUpRight />
-                </Button>
-              </div>
+              <p className="font-serif text-sm text-muted-foreground italic">
+                {categoryName(paper.primaryCategory)}
+                {paper.venue && `, ${paper.venue}`}, {formatArxivDate(paper.publishedDate)}
+              </p>
             </SheetHeader>
 
-            <div className="space-y-4 px-6 pb-6">
-              <div className="flex flex-wrap gap-1.5">
-                <Badge variant="outline" className="gap-1 font-normal">
-                  <Quote className="size-3" /> {formatCount(paper.citationCount)} citations
-                </Badge>
-                {paper.influentialCitationCount > 0 && (
-                  <Badge variant="outline" className="font-normal">
-                    {formatCount(paper.influentialCitationCount)} influential
-                  </Badge>
-                )}
-                {paper.venue && <Badge variant="outline" className="font-normal">{paper.venue}</Badge>}
-                {paper.topics.map((t) => (
-                  <Badge key={t} variant="secondary" className="font-normal">{t}</Badge>
-                ))}
-              </div>
-
+            <div className="px-6 pb-8 sm:px-20">
+              <h4 className="text-center font-serif text-[15px] font-bold">Abstract</h4>
+              <p className="typeset mt-2 font-serif text-[15.5px] leading-[1.6]">{paper.abstract}</p>
               {paper.tldr && (
-                <div className="rounded-lg border-l-2 border-[var(--brand)] bg-muted/50 px-4 py-3 text-sm">
-                  <span className="mr-1 font-semibold">TL;DR</span>
-                  {paper.tldr}
-                </div>
+                <p className="mt-4 font-serif text-[15px] leading-relaxed">
+                  <span className="font-bold">TL;DR. </span>
+                  <span className="bg-[linear-gradient(transparent_68%,var(--highlight)_68%)]">{paper.tldr}</span>
+                </p>
               )}
-
-              <p className="text-[15px] leading-relaxed text-foreground/85">{paper.abstract}</p>
-              {paper.comment && <p className="text-xs text-muted-foreground">{paper.comment}</p>}
+              {paper.topics.length > 0 && (
+                <p className="mt-4 font-serif text-[15px]">
+                  <span className="italic">Keywords: </span>
+                  {paper.topics.join(", ")}
+                </p>
+              )}
+              <p className="mt-4 flex flex-wrap gap-x-5 gap-y-1 text-xs">
+                <span className="text-cite tabular-nums">Cited by {formatCount(paper.citationCount)}</span>
+                {paper.influentialCitationCount > 0 && (
+                  <span className="text-muted-foreground tabular-nums">
+                    {formatCount(paper.influentialCitationCount)} influential citations
+                  </span>
+                )}
+                {paper.comment && <span className="text-muted-foreground">{paper.comment}</span>}
+              </p>
             </div>
 
-            <Separator />
-
-            <section className="space-y-3 p-6">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <h4 className="flex items-center gap-2 font-serif text-lg font-semibold">
-                    <Sparkles className="size-4 text-[var(--brand)]" /> Similar papers
-                  </h4>
-                  <p className="text-xs text-muted-foreground">
-                    Meilisearch <code className="font-mono">/similar</code> · nearest neighbours in embedding space
-                    {data && ` · ${data.processingTimeMs} ms`}
-                  </p>
-                </div>
+            <section className="border-t px-6 py-6 sm:px-14">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h4 className="flex items-center gap-2 font-serif text-lg font-bold">
+                  <Sparkles className="size-4 self-center text-arxiv" /> Similar papers
+                </h4>
                 <label className="flex items-center gap-2 text-sm">
                   <Checkbox checked={sameCategory} onCheckedChange={(v) => setSameCategory(v === true)} />
-                  Only {paper.primaryCategory}
+                  Only {categoryName(paper.primaryCategory)}
                 </label>
               </div>
-              <div className="grid gap-2">
-                {data.similar.map((s) => (
-                  <PaperCard key={s.id} hit={s} onOpen={onOpenPaper} compact />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Nearest neighbours in embedding space, from Meilisearch <code className="font-mono">/similar</code>
+                {data && <span className="tabular-nums"> in {data.processingTimeMs} ms</span>}
+              </p>
+              <ol className="mt-4 space-y-3">
+                {data.similar.map((s, i) => (
+                  <PaperReference key={s.id} hit={s} index={i + 1} onOpen={onOpenPaper} />
                 ))}
-              </div>
+              </ol>
             </section>
-          </>
+          </div>
         )}
       </SheetContent>
     </Sheet>

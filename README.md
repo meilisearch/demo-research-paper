@@ -57,6 +57,45 @@ compose.yaml                 meilisearch + web (Next.js dev server, compose watc
 data/papers.json             fetched dataset (git-ignored)
 web/scripts/fetch-arxiv.ts   dataset builder (arXiv API, Semantic Scholar citations + TL;DRs)
 web/scripts/setup-meilisearch.ts  all Meilisearch configuration lives here
-web/src/app/api/*            server routes: search (multi-search), papers/[id] (/similar), chat-token (tenant token; the browser calls /chats directly)
+web/src/lib/search-api.ts    browser-side search: multi-search, /similar, facet search (search-only key)
+web/src/app/api/*            server routes: chat-token (signs a tenant token; the browser calls /chats directly), status
 web/src/app/                 UI (search page, paper sheet, chat page)
 ```
+
+## Production
+
+| Piece | Where |
+|---|---|
+| Front | Vercel, team **meili**, project `paperscope`: https://paperscope-one.vercel.app |
+| Meilisearch | The main instance on qdq-server (v1.54), `papers` + `authors` indexes, reached at `https://search.qdq.meilisearch.com` |
+| Chat LLM | LUMEN on the same box, via its public URL `https://lumen.meilisearch.com/v1` (Meilisearch rejects private IPs such as `127.0.0.1` as a chat `baseUrl`), model `claude-sonnet-4-5`, virtual key `paperscope-demo-chat` ($25 hard budget, 60 rpm) |
+
+The browser talks to Meilisearch directly: Caddy rate-limits per client IP, so proxying
+search through Vercel would put every visitor in one bucket.
+
+Keys (created by `setup-meilisearch.ts` with fixed uids, so re-runs find them again):
+
+| Key | uid | Actions | Indexes | Lives in |
+|---|---|---|---|---|
+| Paperscope search (public) | `7dbdf598-3e28-4236-9e10-3a5032b8ee19` | `search` | `papers`, `authors` | `NEXT_PUBLIC_MEILI_SEARCH_KEY` (browser bundle) |
+| Paperscope chat (server) | `aaea7803-0890-4396-b0e5-1a630e1a3dc9` | `search`, `chatCompletions` | `papers` | `MEILI_CHAT_KEY` + `MEILI_CHAT_KEY_UID` (Vercel, server only) |
+
+The chat key never reaches the browser: `/api/chat-token` signs a 30-minute tenant token with it.
+The LUMEN key is stored on the box in `/etc/meilisearch/paperscope-lumen-key.json` (0600) and in
+the `papers` chat workspace settings.
+
+Re-import into production over an SSH tunnel, copying the embeddings from your local
+instance so the box does not compute them:
+
+```bash
+ssh -f -N -L 17700:127.0.0.1:7700 root@62.210.158.50
+cd web
+MEILI_HOST=http://localhost:17700 \
+MEILI_MASTER_KEY="$(ssh root@62.210.158.50 'sed -n "s/^MEILI_MASTER_KEY=//p" /etc/meilisearch/meilisearch.env')" \
+CHAT_API_KEY="$(ssh root@62.210.158.50 'python3 -c "import json;print(json.load(open(\"/etc/meilisearch/paperscope-lumen-key.json\"))[\"key\"])"')" \
+CHAT_BASE_URL=https://lumen.meilisearch.com/v1 \
+VECTORS_FROM_HOST=http://localhost:7700 \
+node scripts/setup-meilisearch.ts
+```
+
+Deploy the front with `vercel deploy --prod --scope meili` from `web/`.
