@@ -23,6 +23,8 @@ export interface ChatSearchStep {
   callId: string;
   q: string;
   filter?: string;
+  /** Papers this search returned, once its sources have arrived. */
+  results?: number;
 }
 
 /** A turn rendered in the UI (internal tool messages are kept separately). */

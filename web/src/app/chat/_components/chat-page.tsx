@@ -1,14 +1,15 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUp, BookMarked, Globe, Loader2, RotateCcw, Search, Square, Trash2, X } from "lucide-react";
+import { ArrowUp, BookMarked, ChevronRight, Globe, Loader2, RotateCcw, Search, Square, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { ChatTurn } from "@/lib/chat-types";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import type { ChatSearchStep, ChatSource, ChatTurn } from "@/lib/chat-types";
 import { getPaperCount, getPaper } from "@/lib/search-api";
 import { cn } from "@/lib/utils";
 import { useReadingList } from "../../_components/reading-list-store";
@@ -40,23 +41,84 @@ const SUGGESTIONS: Record<Scope, string[]> = {
   ],
 };
 
+function SearchSteps({ searches, active }: { searches: ChatSearchStep[]; active: boolean }) {
+  const last = searches[searches.length - 1];
+  const found = searches.reduce((n, s) => n + (s.results ?? 0), 0);
+  return (
+    <Collapsible>
+      <CollapsibleTrigger className="group flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
+        {active ? <Loader2 className="size-3.5 animate-spin text-arxiv" /> : <Search className="size-3.5" />}
+        {active ? (
+          <span>
+            Searching <span className="text-foreground">&ldquo;{last.q || "all papers"}&rdquo;</span>…
+          </span>
+        ) : (
+          <span>
+            Searched the papers {searches.length === 1 ? "once" : `${searches.length} times`}
+            {found > 0 && <span className="text-muted-foreground/80"> · {found} results</span>}
+          </span>
+        )}
+        <ChevronRight className="size-3.5 transition-transform group-data-[panel-open]:rotate-90" />
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <ol className="mt-2 ml-1.5 space-y-2 border-l pl-3.5 font-mono text-[12.5px] leading-relaxed">
+          {searches.map((s) => (
+            <li key={s.callId}>
+              <div className="break-words">
+                <span className="text-arxiv">●</span> Search(
+                <span className="text-foreground">&quot;{s.q || "*"}&quot;</span>
+                {s.filter && (
+                  <>
+                    , filter: <span className="text-arxiv">{s.filter}</span>
+                  </>
+                )}
+                )
+              </div>
+              <div className="pl-4 text-muted-foreground">
+                ⎿ {s.results === undefined ? "searching…" : `${s.results} ${s.results === 1 ? "paper" : "papers"}`}
+              </div>
+            </li>
+          ))}
+        </ol>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+function References({ sources }: { sources: ChatSource[] }) {
+  return (
+    <Collapsible className="border-t pt-3">
+      <CollapsibleTrigger className="group flex items-center gap-2 text-left">
+        <ChevronRight className="size-3.5 text-muted-foreground transition-transform group-data-[panel-open]:rotate-90" />
+        <span className="font-serif text-[15px] font-bold group-hover:text-arxiv">References</span>
+        <span className="text-xs text-muted-foreground">{sources.length} papers retrieved by Meilisearch</span>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <ol className="mt-2 space-y-1">
+          {sources.map((s, i) => (
+            <li key={s.id} className="grid grid-cols-[2rem_1fr] items-baseline font-serif text-[14.5px] leading-snug">
+              <span className="text-muted-foreground tabular-nums">[{i + 1}]</span>
+              <a
+                href={`https://arxiv.org/abs/${s.arxivId ?? s.id}`}
+                target="_blank"
+                rel="noreferrer"
+                className="underline-offset-2 hover:text-arxiv hover:underline"
+              >
+                {s.title}
+                {s.year && <span className="text-muted-foreground">, {s.year}</span>}
+              </a>
+            </li>
+          ))}
+        </ol>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
 function AssistantTurn({ turn, streaming }: { turn: ChatTurn; streaming: boolean }) {
   return (
     <div className="space-y-3">
-      {turn.searches.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {turn.searches.map((s) => (
-            <span
-              key={s.callId}
-              className="flex items-center gap-1.5 rounded-sm bg-muted px-2 py-1 text-xs text-muted-foreground"
-            >
-              <Search className="size-3" />
-              <span className="text-foreground">{s.q || "(browse)"}</span>
-              {s.filter && <code className="font-mono text-[11px] text-arxiv">{s.filter}</code>}
-            </span>
-          ))}
-        </div>
-      )}
+      {turn.searches.length > 0 && <SearchSteps searches={turn.searches} active={streaming && !turn.content} />}
       {turn.error ? (
         <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{turn.error}</p>
       ) : turn.content ? (
@@ -64,36 +126,15 @@ function AssistantTurn({ turn, streaming }: { turn: ChatTurn; streaming: boolean
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{turn.content}</ReactMarkdown>
         </div>
       ) : (
-        streaming && (
+        streaming &&
+        turn.searches.length === 0 && (
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="size-4 animate-spin" />
-            {turn.searches.length ? "Reading papers…" : "Searching Meilisearch…"}
+            Searching Meilisearch…
           </p>
         )
       )}
-      {turn.sources.length > 0 && (
-        <div className="border-t pt-3">
-          <p className="font-serif text-[15px] font-bold">
-            References <span className="font-sans text-xs font-normal text-muted-foreground">{turn.sources.length} papers retrieved by Meilisearch</span>
-          </p>
-          <ol className="mt-2 space-y-1">
-            {turn.sources.map((s, i) => (
-              <li key={s.id} className="grid grid-cols-[2rem_1fr] items-baseline font-serif text-[14.5px] leading-snug">
-                <span className="text-muted-foreground tabular-nums">[{i + 1}]</span>
-                <a
-                  href={`https://arxiv.org/abs/${s.arxivId ?? s.id}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline-offset-2 hover:text-arxiv hover:underline"
-                >
-                  {s.title}
-                  {s.year && <span className="text-muted-foreground">, {s.year}</span>}
-                </a>
-              </li>
-            ))}
-          </ol>
-        </div>
-      )}
+      {turn.sources.length > 0 && <References sources={turn.sources} />}
     </div>
   );
 }

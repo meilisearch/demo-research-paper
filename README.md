@@ -53,7 +53,7 @@ The `/chats` workspace needs an LLM provider. Set these in `.env`, then re-run `
 (documents are already indexed, so it is fast):
 
 ```bash
-CHAT_SOURCE=openAi        # openAi | mistral | vLlm
+CHAT_SOURCE=openAi        # openAi | mistral | vLlm (vLlm for OpenAI-compatible gateways like LUMEN)
 CHAT_API_KEY=sk-...
 CHAT_MODEL=gpt-4o-mini
 CHAT_BASE_URL=            # required for mistral (https://api.mistral.ai/v1) and vLlm
@@ -93,7 +93,7 @@ web/src/app/                      UI: search page, paper panel, chat page
 |---|---|
 | Front | Vercel, team **meili**, project `paperscope`: https://paperscope-one.vercel.app |
 | Meilisearch | Main instance on qdq-server (v1.54), `papers` and `authors` indexes, at `https://search.qdq.meilisearch.com` |
-| Chat LLM | LUMEN on the same box, through its public URL `https://lumen.meilisearch.com/v1`, model `claude-sonnet-4-5`, virtual key `paperscope-demo-chat` ($25 hard budget, 60 rpm) |
+| Chat LLM | LUMEN on the same box, through its public URL `https://lumen.meilisearch.com/v1` as a `vLlm` source (so the system prompt is sent as a `system` message), model `claude-sonnet-5-5`, virtual key `paperscope-demo-chat` ($25 hard budget, 60 rpm) |
 
 Two things worth knowing:
 
@@ -121,6 +121,7 @@ cd web
 MEILI_HOST=http://localhost:17700 \
 MEILI_MASTER_KEY="$(ssh root@62.210.158.50 'sed -n "s/^MEILI_MASTER_KEY=//p" /etc/meilisearch/meilisearch.env')" \
 CHAT_API_KEY="$(ssh root@62.210.158.50 'python3 -c "import json;print(json.load(open(\"/etc/meilisearch/paperscope-lumen-key.json\"))[\"key\"])"')" \
+CHAT_SOURCE=vLlm \
 CHAT_BASE_URL=https://lumen.meilisearch.com/v1 \
 VECTORS_FROM_HOST=http://localhost:7700 \
 node scripts/setup-meilisearch.ts
