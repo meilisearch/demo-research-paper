@@ -6,17 +6,18 @@ Search, explore, and chat with ~6,000 AI research papers from arXiv, powered by 
 
 ![Paperscope search page: a hybrid query for "attention is all you need" with category and year facets](assets/paperscope-search.webp)
 
-Type a title, an author, or describe an idea in your own words. A slider moves the search from exact
-words to meaning, every paper links to its nearest neighbours, and the chat page answers questions
+Type a title, an author, or describe an idea in your own words. Hybrid search matches both the exact
+words and the meaning, every paper links to its nearest neighbours, and the chat page answers questions
 from the whole corpus, your reading list, or a single paper, with sources.
 
 ## What it shows
 
 | In the app | Meilisearch feature |
 |---|---|
-| "Exact words ↔ Meaning" slider | **Hybrid search** (`hybrid.semanticRatio`) with a HuggingFace embedder (`BAAI/bge-small-en-v1.5`) running inside Meilisearch |
+| Every search | **Hybrid search** (`hybrid.semanticRatio: 0.5`) with a HuggingFace embedder (`BAAI/bge-small-en-v1.5`) running inside Meilisearch |
 | "11 of them found only by meaning" | `semanticHitCount` |
-| "100% match" on each result | `showRankingScore` |
+| "98% match" on each result, with how it was ranked on hover | `showRankingScore` and `showRankingScoreDetails` |
+| "by meaning" badge | The hit's ranking details hold `vectorSort`: the embedding ranked it, not the keywords |
 | "tranformer" still finds transformers | **Typo tolerance** |
 | "LLM", "RAG", "LoRA"... | **Synonyms** |
 | Category, topic, and author filters with counts | **Filters** and **facets** |
@@ -27,7 +28,7 @@ from the whole corpus, your reading list, or a single paper, with sources.
 | Author chips above the results | **Multi-search** (`papers` and `authors` indexes in one request) |
 | "Similar papers" in the paper panel | **`/similar`** endpoint, optionally filtered to the same category |
 | "Ask the papers" page | **Conversational search** (`/chats`): the LLM calls a hybrid search tool and streams progress and sources |
-| Chat with your reading list or one paper | **Tenant token** whose search rule is `id IN [...]` |
+| Chat with your reading list or one paper | **Tenant token** whose search rule is `id IN [...]`, plus a system message telling the LLM which papers that is |
 
 ## Run it locally
 

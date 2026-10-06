@@ -26,8 +26,12 @@ const uid = () => Math.random().toString(36).slice(2);
  * (the browser calls Meilisearch with a tenant token) and keeps the OpenAI-format
  * history, including the internal search messages Meilisearch hands back via
  * `_meiliAppendConversationMessage`.
+ *
+ * `scopeContext` is sent as a system message on every request (never stored in
+ * the history): the tenant token restricts what the search tool returns, but the
+ * LLM still needs to be told which papers "my reading list" means.
  */
-export function useMeiliChat(scopeIds: string[] | undefined) {
+export function useMeiliChat(scopeIds: string[] | undefined, scopeContext?: string) {
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const history = useRef<ChatMessage[]>([]);
@@ -63,10 +67,13 @@ export function useMeiliChat(scopeIds: string[] | undefined) {
         const session = (await tokenRes.json()) as ChatSession;
 
         // 2. The browser talks to Meilisearch's OpenAI-compatible /chats endpoint directly.
+        const messages: ChatMessage[] = scopeContext
+          ? [{ role: "system", content: scopeContext }, ...history.current]
+          : history.current;
         const res = await fetch(`${session.host}/chats/${session.workspace}/chat/completions`, {
           method: "POST",
           headers: { Authorization: `Bearer ${session.token}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ model: session.model, stream: true, messages: history.current, tools: MEILI_TOOLS }),
+          body: JSON.stringify({ model: session.model, stream: true, messages, tools: MEILI_TOOLS }),
           signal: abort.current.signal,
         });
         if (!res.ok || !res.body) {
@@ -146,7 +153,7 @@ export function useMeiliChat(scopeIds: string[] | undefined) {
         setIsStreaming(false);
       }
     },
-    [patchLast, scopeIds],
+    [patchLast, scopeIds, scopeContext],
   );
 
   const reset = useCallback(() => {
