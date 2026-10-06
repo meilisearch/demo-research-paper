@@ -22,17 +22,33 @@ export interface Paper {
   tldr: string | null;
 }
 
+interface RuleScore {
+  order: number;
+  score: number;
+}
+
+/** `_rankingScoreDetails`: one entry per ranking rule that ranked the hit. */
+export interface RankingScoreDetails {
+  words?: RuleScore & { matchingWords: number; maxMatchingWords: number };
+  typo?: RuleScore & { typoCount: number; maxTypoCount: number };
+  proximity?: RuleScore;
+  attribute?: RuleScore;
+  exactness?: RuleScore & { matchType: string };
+  /** Present when the hit came from the semantic (vector) side of a hybrid search. */
+  vectorSort?: { order: number; similarity: number; value?: unknown };
+  [rule: string]: { order: number; score?: number; value?: unknown } | undefined;
+}
+
 export type PaperHit = Paper & {
   _formatted?: Partial<Record<keyof Paper, string | string[]>>;
   _rankingScore?: number;
-  _semanticScore?: number;
+  _rankingScoreDetails?: RankingScoreDetails;
 };
 
 export type SortOption = "relevance" | "newest" | "oldest" | "citations";
 
 export interface SearchRequest {
   q: string;
-  semanticRatio: number;
   page: number;
   sort: SortOption;
   filters: {

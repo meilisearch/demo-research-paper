@@ -9,6 +9,9 @@ const SEARCH_KEY = process.env.NEXT_PUBLIC_MEILI_SEARCH_KEY ?? "";
 export const PAPERS_INDEX = "papers";
 export const AUTHORS_INDEX = "authors";
 export const EMBEDDER = "bge";
+export const EMBEDDER_MODEL = "BAAI/bge-small-en-v1.5";
+/** Hybrid search: half keyword relevance, half meaning (bge embeddings). */
+export const SEMANTIC_RATIO = 0.5;
 
 const client = new Meilisearch({ host: MEILI_URL, apiKey: SEARCH_KEY });
 const papers = client.index<Paper>(PAPERS_INDEX);
@@ -39,7 +42,7 @@ function buildFilter({ filters }: SearchRequest): string[] {
 /** One round-trip: papers (hybrid + facets) and matching authors. */
 export async function searchPapers(body: SearchRequest, signal?: AbortSignal): Promise<SearchResponse> {
   const q = body.q.trim();
-  const hybrid = q && body.semanticRatio > 0 ? { embedder: EMBEDDER, semanticRatio: body.semanticRatio } : undefined;
+  const hybrid = q ? { embedder: EMBEDDER, semanticRatio: SEMANTIC_RATIO } : undefined;
 
   const { results } = (await client.multiSearch(
     {
@@ -58,6 +61,7 @@ export async function searchPapers(body: SearchRequest, signal?: AbortSignal): P
           highlightPreTag: "__HL__",
           highlightPostTag: "__/HL__",
           showRankingScore: true,
+          showRankingScoreDetails: true,
         },
         ...(q
           ? [{ indexUid: AUTHORS_INDEX, q, limit: 4, attributesToSearchOn: ["name"], rankingScoreThreshold: 0.85 }]
@@ -101,6 +105,7 @@ export async function getPaper(id: string, sameCategory = false): Promise<PaperD
     embedder: EMBEDDER,
     limit: 8,
     showRankingScore: true,
+    showRankingScoreDetails: true,
     filter: sameCategory ? `primaryCategory = ${quote(paper.primaryCategory)}` : undefined,
   });
   return { paper, similar: similar.hits, processingTimeMs: similar.processingTimeMs };

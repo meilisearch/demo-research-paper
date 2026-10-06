@@ -7,7 +7,6 @@ type FilterKey = "primaryCategory" | "topics" | "authors";
 
 interface SearchState extends SearchRequest {
   setQ: (q: string) => void;
-  setSemanticRatio: (r: number) => void;
   setSort: (s: SortOption) => void;
   setPage: (p: number) => void;
   toggleFilter: (key: FilterKey, value: string) => void;
@@ -19,12 +18,10 @@ const EMPTY_FILTERS: SearchRequest["filters"] = { primaryCategory: [], topics: [
 
 export const useSearch = create<SearchState>()((set) => ({
   q: "",
-  semanticRatio: 0.5,
   page: 1,
   sort: "relevance",
   filters: EMPTY_FILTERS,
   setQ: (q) => set({ q, page: 1 }),
-  setSemanticRatio: (semanticRatio) => set({ semanticRatio, page: 1 }),
   setSort: (sort) => set({ sort, page: 1 }),
   setPage: (page) => set({ page }),
   toggleFilter: (key, value) =>

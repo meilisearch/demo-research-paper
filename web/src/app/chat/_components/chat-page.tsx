@@ -41,6 +41,24 @@ const SUGGESTIONS: Record<Scope, string[]> = {
   ],
 };
 
+interface ScopedPaper {
+  title: string;
+  arxivId: string;
+  year: number;
+}
+
+/** Tells the LLM which papers the tenant token limits its search tool to. */
+function scopeContext(scope: Scope, papers: ScopedPaper[]) {
+  if (scope === "all" || papers.length === 0) return undefined;
+  const what = scope === "list" ? `their reading list (${papers.length} papers)` : "a single paper";
+  return [
+    `The user is chatting with ${what}:`,
+    ...papers.map((p) => `- "${p.title}" (arXiv:${p.arxivId}, ${p.year})`),
+    `Your search tool is restricted to ${scope === "list" ? "exactly these papers" : "this paper"}: every search only returns papers from this list.`,
+    `When the user says "my reading list", "these papers" or "this paper", they mean ${scope === "list" ? "these" : "this one"}. Search for them by title or topic before answering, and never ask the user which papers they mean.`,
+  ].join("\n");
+}
+
 function SearchSteps({ searches, active }: { searches: ChatSearchStep[]; active: boolean }) {
   const last = searches[searches.length - 1];
   const found = searches.reduce((n, s) => n + (s.results ?? 0), 0);
@@ -164,7 +182,12 @@ export function ChatPage({ initialScope, paperId }: { initialScope: Scope; paper
     return undefined;
   }, [scope, paperId, readingList]);
 
-  const { turns, isStreaming, send, reset, stop } = useMeiliChat(scopeIds);
+  const context = useMemo(() => {
+    if (scope === "paper") return focusPaper ? scopeContext(scope, [focusPaper.paper]) : undefined;
+    return scopeContext(scope, readingList);
+  }, [scope, focusPaper, readingList]);
+
+  const { turns, isStreaming, send, reset, stop } = useMeiliChat(scopeIds, context);
   const listEmpty = scope === "list" && readingList.length === 0;
 
   useEffect(() => {

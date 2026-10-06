@@ -1,13 +1,12 @@
 "use client";
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, Search, UserRound } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, Sparkles, UserRound } from "lucide-react";
 import { useDeferredValue, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Slider } from "@/components/ui/slider";
-import { getPaperCount, searchPapers } from "@/lib/search-api";
+import { EMBEDDER_MODEL, getPaperCount, SEMANTIC_RATIO, searchPapers } from "@/lib/search-api";
 import type { SortOption } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { formatCount } from "./categories";
@@ -32,18 +31,11 @@ const EXAMPLES = [
   "cheap fine-tuning of big models",
 ];
 
-function modeLabel(ratio: number) {
-  if (ratio === 0) return "Keyword";
-  if (ratio === 1) return "Semantic";
-  return "Hybrid";
-}
-
 export function SearchPage() {
   const state = useSearch();
   const [openId, setOpenId] = useState<string | null>(null);
   const request = useDeferredValue({
     q: state.q,
-    semanticRatio: state.semanticRatio,
     page: state.page,
     sort: state.sort,
     filters: state.filters,
@@ -57,7 +49,7 @@ export function SearchPage() {
   });
 
   // Semantic search ranks every paper, so the total count isn't meaningful: cap paging instead.
-  const semantic = !!request.q.trim() && request.semanticRatio > 0;
+  const semantic = !!request.q.trim();
   const totalPages = data ? (semantic ? Math.min(data.totalPages, 10) : data.totalPages) : 0;
 
   return (
@@ -88,31 +80,16 @@ export function SearchPage() {
           )}
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm whitespace-nowrap">
-          <div className="flex items-center gap-3">
-            <span className={cn("text-muted-foreground", state.semanticRatio === 0 && "text-foreground")}>
-              Exact words
-            </span>
-            <Slider
-              className="data-horizontal:w-32 sm:data-horizontal:w-40"
-              aria-label="Balance between keyword and semantic search"
-              min={0}
-              max={1}
-              step={0.1}
-              value={[state.semanticRatio]}
-              onValueChange={(v) => state.setSemanticRatio((v as number[])[0])}
-            />
-            <span className={cn("text-muted-foreground", state.semanticRatio === 1 && "text-foreground")}>
-              Meaning
-            </span>
-          </div>
-          <span className="rounded-sm bg-muted px-1.5 py-0.5 text-xs">
-            {modeLabel(state.semanticRatio)}{" "}
-            <code className="font-mono text-[11px] text-muted-foreground">
-              semanticRatio: {state.semanticRatio.toFixed(1)}
-            </code>
+        <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+          <Sparkles className="size-3.5 text-arxiv" />
+          <span>
+            Hybrid search: keyword relevance and meaning, weighted half and half. Hover a match score to see how
+            Meilisearch ranked the paper.
           </span>
-        </div>
+          <code className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[11px]">
+            semanticRatio: {SEMANTIC_RATIO} · {EMBEDDER_MODEL}
+          </code>
+        </p>
 
         {!state.q && (
           <p className="mt-4 font-serif text-[15px] leading-relaxed">
@@ -212,8 +189,7 @@ export function SearchPage() {
           </div>
           {data && data.hits.length === 0 && (
             <p className="py-16 text-center font-serif text-lg text-muted-foreground">
-              No papers match. Move the slider toward <span className="text-foreground">Meaning</span> to search by
-              idea instead of exact words.
+              No papers match. Try fewer filters, or describe the idea in other words.
             </p>
           )}
 
