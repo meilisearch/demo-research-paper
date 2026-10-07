@@ -10,8 +10,20 @@ export const PAPERS_INDEX = "papers";
 export const AUTHORS_INDEX = "authors";
 export const EMBEDDER = "bge";
 export const EMBEDDER_MODEL = "BAAI/bge-small-en-v1.5";
-/** Hybrid search: half keyword relevance, half meaning (bge embeddings). */
-export const SEMANTIC_RATIO = 0.5;
+/**
+ * Hybrid search, leaning slightly towards keywords. At 0.5 a paper merely close in meaning
+ * outranked an exact author match ("hinton", "Vaswani"); below 0.45, partial keyword matches
+ * start pushing out papers that answer a question asked in other words.
+ */
+export const SEMANTIC_RATIO = 0.45;
+/**
+ * Semantic search ranks every paper, so even a query with nothing to do with the corpus
+ * ("chocolate cake recipe") gets results. When none of the words match and the best
+ * embedding similarity is below this, the page says the results are only loosely related.
+ * Calibrated by hand on the production embedder: off-topic queries top out around
+ * 0.89–0.92, real ideas described in other words start around 0.94.
+ */
+export const WEAK_MATCH_SCORE = 0.93;
 
 const client = new Meilisearch({ host: MEILI_URL, apiKey: SEARCH_KEY });
 const papers = client.index<Paper>(PAPERS_INDEX);

@@ -10,9 +10,7 @@ import { Slider } from "@/components/ui/slider";
 import { searchFacetValues } from "@/lib/search-api";
 import type { SearchResponse } from "@/lib/types";
 import { categoryName } from "./categories";
-import { useSearch } from "./search-store";
-
-type FilterKey = "primaryCategory" | "topics" | "authors";
+import { activeFilterCount, type FilterKey, useSearch } from "./search-store";
 
 function FacetList({
   title,
@@ -139,9 +137,7 @@ function YearFacet({ stats }: { stats?: { min: number; max: number } }) {
 export function FacetsPanel({ data }: { data: SearchResponse | undefined }) {
   const filters = useSearch((s) => s.filters);
   const reset = useSearch((s) => s.reset);
-  const active =
-    filters.primaryCategory.length + filters.topics.length + filters.authors.length +
-    (filters.yearMin !== undefined || filters.yearMax !== undefined ? 1 : 0);
+  const active = activeFilterCount(filters);
 
   return (
     <aside className="space-y-7">

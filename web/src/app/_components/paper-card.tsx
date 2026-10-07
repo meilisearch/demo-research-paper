@@ -53,7 +53,7 @@ export function ReadingListButton({ paper, size = "icon-sm" }: { paper: PaperHit
 }
 
 /** In a hybrid search, a hit ranked by its bge embedding carries a `vectorSort` detail instead of keyword rules. */
-function isSemantic(hit: PaperHit) {
+export function isSemantic(hit: PaperHit) {
   return hit._rankingScoreDetails?.vectorSort !== undefined;
 }
 
@@ -70,6 +70,8 @@ const KEYWORD_RULES: Record<string, (d: NonNullable<RankingScoreDetails[string]>
   },
   proximity: () => "query words close together",
   attribute: () => "matched in title, TL;DR or abstract",
+  attributeRank: () => "best field matched: title, arXiv ID, authors, TL;DR, abstract…",
+  wordPosition: () => "query words early in the field",
   exactness: (d) => `${(d as NonNullable<RankingScoreDetails["exactness"]>).matchType.replace(/([A-Z])/g, " $1").toLowerCase()}`,
 };
 
@@ -78,6 +80,8 @@ const RULE_NAMES: Record<string, string> = {
   typo: "Typo",
   proximity: "Proximity",
   attribute: "Attribute",
+  attributeRank: "Field",
+  wordPosition: "Position",
   exactness: "Exactness",
   "citationCount:desc": "Citations",
 };
