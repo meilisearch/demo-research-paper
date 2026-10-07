@@ -94,7 +94,9 @@ async function main() {
   const papersIndex = client.index<Paper>(PAPERS);
 
   const settingsTask = await papersIndex.updateSettings({
-    searchableAttributes: ["title", "tldr", "abstract", "authors", "topics", "venue"],
+    // arXiv IDs ("1706.03762") and author names rank right after titles: a query that names
+    // a paper or a person should beat a paper that merely mentions the words in its abstract.
+    searchableAttributes: ["title", "arxivId", "authors", "tldr", "abstract", "topics", "venue"],
     displayedAttributes: ["*"],
     filterableAttributes: [
       "id",
@@ -108,8 +110,18 @@ async function main() {
       "venue",
     ],
     sortableAttributes: ["publishedAt", "citationCount"],
-    // Custom ranking: after textual relevance, favour highly-cited papers.
-    rankingRules: ["words", "typo", "proximity", "attribute", "sort", "exactness", "citationCount:desc"],
+    // `attributeRank` before `proximity`: a match in the title beats the same words close
+    // together in an abstract. Custom ranking last: favour highly-cited papers.
+    rankingRules: [
+      "words",
+      "typo",
+      "attributeRank",
+      "proximity",
+      "sort",
+      "wordPosition",
+      "exactness",
+      "citationCount:desc",
+    ],
     synonyms: {
       llm: ["large language model"],
       llms: ["large language models"],

@@ -14,8 +14,8 @@ from the whole corpus, your reading list, or a single paper, with sources.
 
 | In the app | Meilisearch feature |
 |---|---|
-| Every search | **Hybrid search** (`hybrid.semanticRatio: 0.5`) with a HuggingFace embedder (`BAAI/bge-small-en-v1.5`) running inside Meilisearch |
-| "11 of them found only by meaning" | `semanticHitCount` |
+| Every search | **Hybrid search** (`hybrid.semanticRatio: 0.45`) with a HuggingFace embedder (`BAAI/bge-small-en-v1.5`) running inside Meilisearch |
+| "11 of them ranked by meaning" | `semanticHitCount` |
 | "98% match" on each result, with how it was ranked on hover | `showRankingScore` and `showRankingScoreDetails` |
 | "by meaning" badge | The hit's ranking details hold `vectorSort`: the embedding ranked it, not the keywords |
 | "tranformer" still finds transformers | **Typo tolerance** |
@@ -24,6 +24,8 @@ from the whole corpus, your reading list, or a single paper, with sources.
 | Year range slider and "Results span 2003 to 2026" | `facetStats` |
 | "Find an author..." box | **Facet search** |
 | Sort by relevance, most cited, newest, oldest | **Sort**, plus the custom ranking rule `citationCount:desc` |
+| A title or author match beats the same words in an abstract | `attributeRank` ranked before `proximity`, with `authors` right after `title` in `searchableAttributes` |
+| "1706.03762" finds *Attention Is All You Need* | `arxivId` is searchable |
 | Highlighted matches and abstract snippets | **Highlighting** and **cropping** |
 | Author chips above the results | **Multi-search** (`papers` and `authors` indexes in one request) |
 | "Similar papers" in the paper panel | **`/similar`** endpoint, optionally filtered to the same category |
